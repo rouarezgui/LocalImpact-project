@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  MANAGER
+  ADMIN
+}
+
+enum ReportStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum ReportCategory {
+  ROADS
+  LIGHTING
+  GREEN_SPACES
+  CLEANLINESS
+  OTHER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reports         Report[]        @relation("CreatedReports")
+  assignedReports Report[]        @relation("AssignedReports")
+  comments        Comment[]
+  supports        Support[]
+  history         ReportHistory[]
+}
+
+model Report {
+  id                    String         @id @default(cuid())
+  title                 String
+  description           String
+  category              ReportCategory
+  status                ReportStatus   @default(PENDING)
+  address               String
+  latitude              Float
+  longitude             Float
+  photoUrl              String?
+  resolutionDescription String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  creatorId String
+  creator   User   @relation("CreatedReports", fields: [creatorId], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedReports", fields: [assignedToId], references: [id])
+
+  comments Comment[]
+  supports Support[]
+  history  ReportHistory[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  userId   String
+  reportId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  report Report @relation(fields: [reportId], references: [id])
+}
+
+model Support {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId   String
+  reportId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  report Report @relation(fields: [reportId], references: [id])
+
+  @@unique([userId, reportId])
+}
+
+model ReportHistory {
+  id          String        @id @default(cuid())
+  oldStatus   ReportStatus?
+  newStatus   ReportStatus
+  description String?
+  createdAt   DateTime      @default(now())
+
+  userId   String
+  reportId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  report Report @relation(fields: [reportId], references: [id])
+}

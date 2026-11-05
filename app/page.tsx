@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 import Navbar from "./components/Navbar";
 import CategoryCard from "./components/CategoryCard";
 import ReportCard from "./components/ReportCard";
@@ -12,68 +16,178 @@ import {
   Recycle,
   Route,
   Trees,
-  Users,
 } from "lucide-react";
+
+type SavedReport = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  } | null;
+  photoName: string | null;
+  status: string;
+  createdAt: string;
+};
+
+const STORAGE_KEY = "localimpact-reports";
+
+const categoryConfig: Record<
+  string,
+  {
+    label: string;
+    color: string;
+    icon: typeof Route;
+  }
+> = {
+  routes: {
+    label: "Routes et voirie",
+    color: "bg-amber-100 text-amber-800",
+    icon: Route,
+  },
+  eclairage: {
+    label: "Éclairage public",
+    color: "bg-blue-100 text-blue-800",
+    icon: Lightbulb,
+  },
+  "espaces-verts": {
+    label: "Espaces verts",
+    color: "bg-emerald-100 text-emerald-800",
+    icon: Trees,
+  },
+  proprete: {
+    label: "Propreté",
+    color: "bg-purple-100 text-purple-800",
+    icon: Recycle,
+  },
+  autre: {
+    label: "Autre",
+    color: "bg-slate-100 text-slate-800",
+    icon: MapPin,
+  },
+};
 
 const categories = [
   {
     icon: Route,
     name: "Routes et voirie",
-    count: "12 signalements",
+    count: "Routes et voirie",
   },
   {
     icon: Lightbulb,
     name: "Éclairage public",
-    count: "8 signalements",
+    count: "Éclairage public",
   },
   {
     icon: Trees,
     name: "Espaces verts",
-    count: "6 signalements",
+    count: "Espaces verts",
   },
   {
     icon: Recycle,
     name: "Propreté",
-    count: "9 signalements",
+    count: "Propreté",
   },
 ];
 
-const reports = [
-  {
-    category: "Routes et voirie",
-    title: "Nid-de-poule sur la route principale",
-    location: "Centre-ville",
-    status: "En cours",
-    color: "bg-amber-100 text-amber-800",
-    icon: Route,
-  },
-  {
-    category: "Éclairage public",
-    title: "Lampadaire en panne",
-    location: "Quartier résidentiel",
-    status: "Nouveau",
-    color: "bg-blue-100 text-blue-800",
-    icon: Lightbulb,
-  },
-  {
-    category: "Propreté",
-    title: "Déchets près du parc municipal",
-    location: "Parc municipal",
-    status: "Résolu",
-    color: "bg-emerald-100 text-emerald-800",
-    icon: Recycle,
-  },
-];
+function getStatusColor(status: string) {
+  switch (status.toLowerCase()) {
+    case "résolu":
+      return "bg-emerald-100 text-emerald-800";
+
+    case "en cours":
+      return "bg-amber-100 text-amber-800";
+
+    case "pris en charge":
+      return "bg-purple-100 text-purple-800";
+
+    default:
+      return "bg-blue-100 text-blue-800";
+  }
+}
 
 export default function Home() {
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    function loadReports() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+
+        if (!stored) {
+          setSavedReports([]);
+          return;
+        }
+
+        const parsed: unknown = JSON.parse(stored);
+
+        if (Array.isArray(parsed)) {
+          setSavedReports(parsed as SavedReport[]);
+        } else {
+          setSavedReports([]);
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement des signalements :",
+          error
+        );
+        setSavedReports([]);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+
+    loadReports();
+
+    window.addEventListener("storage", loadReports);
+    window.addEventListener("focus", loadReports);
+
+    return () => {
+      window.removeEventListener("storage", loadReports);
+      window.removeEventListener("focus", loadReports);
+    };
+  }, []);
+
+  const resolvedReports = savedReports.filter(
+    (report) => report.status.toLowerCase() === "résolu"
+  );
+
+  const recentReports = [...savedReports]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() -
+        new Date(a.createdAt).getTime()
+    )
+    .slice(0, 6);
+
+  const recentActivities = recentReports.slice(0, 2);
+
+  const categoryCounts = savedReports.reduce(
+    (counts, report) => {
+      counts[report.category] =
+        (counts[report.category] || 0) + 1;
+
+      return counts;
+    },
+    {} as Record<string, number>
+  );
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       {/* Navigation */}
       <Navbar />
 
       {/* Section principale */}
-      <section id="accueil" className="relative overflow-hidden bg-white">
+      <section
+        id="accueil"
+        className="relative overflow-hidden bg-white"
+      >
         <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-blue-100/70 blur-3xl" />
+
         <div className="pointer-events-none absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-sky-100/70 blur-3xl" />
 
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 md:py-24 lg:grid-cols-2 lg:px-8">
@@ -85,16 +199,22 @@ export default function Home() {
 
             <h1 className="mt-7 max-w-2xl text-4xl font-bold leading-tight tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
               Votre quartier,
-              <span className="block text-blue-600">votre impact.</span>
+              <span className="block text-blue-600">
+                votre impact.
+              </span>
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
-              Un problème dans votre quartier ? Signalez-le facilement,
-              suivez son évolution et participez à la construction d’un
-              environnement plus agréable pour tous.
+              Un problème dans votre quartier ? Signalez-le
+              facilement, suivez son évolution et participez
+              à la construction d’un environnement plus
+              agréable pour tous.
             </p>
 
-            <div id="signaler" className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div
+              id="signaler"
+              className="mt-9 flex flex-col gap-3 sm:flex-row"
+            >
               <a
                 href="/reports/new"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
@@ -113,17 +233,26 @@ export default function Home() {
 
             <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-500">
               <span className="inline-flex items-center gap-2">
-                <CheckCircle2 size={17} className="text-blue-600" />
+                <CheckCircle2
+                  size={17}
+                  className="text-blue-600"
+                />
                 Simple et accessible
               </span>
 
               <span className="inline-flex items-center gap-2">
-                <CheckCircle2 size={17} className="text-blue-600" />
+                <CheckCircle2
+                  size={17}
+                  className="text-blue-600"
+                />
                 Suivi des signalements
               </span>
 
               <span className="inline-flex items-center gap-2">
-                <CheckCircle2 size={17} className="text-blue-600" />
+                <CheckCircle2
+                  size={17}
+                  className="text-blue-600"
+                />
                 Action collective
               </span>
             </div>
@@ -137,102 +266,128 @@ export default function Home() {
                   <p className="text-sm font-medium text-slate-500">
                     Vue d’ensemble
                   </p>
+
                   <h2 className="mt-1 text-xl font-bold">
                     La vie du quartier
                   </h2>
                 </div>
 
                 <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-                  <Building2 size={27} className="text-blue-600" />
+                  <Building2
+                    size={27}
+                    className="text-blue-600"
+                  />
                 </span>
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="rounded-2xl bg-blue-50 p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-blue-700">Signalements</p>
-                    <Route size={19} className="text-blue-600" />
+                    <p className="text-sm text-blue-700">
+                      Signalements
+                    </p>
+
+                    <Route
+                      size={19}
+                      className="text-blue-600"
+                    />
                   </div>
-                  <p className="mt-3 text-3xl font-bold text-blue-900">35</p>
+
+                  <p className="mt-3 text-3xl font-bold text-blue-900">
+                    {isLoaded ? savedReports.length : "—"}
+                  </p>
+
                   <p className="mt-1 text-xs text-blue-700">
-                    Données de démonstration
+                    Total enregistré
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-emerald-50 p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-emerald-700">Résolus</p>
-                    <CheckCircle2 size={19} className="text-emerald-600" />
+                    <p className="text-sm text-emerald-700">
+                      Résolus
+                    </p>
+
+                    <CheckCircle2
+                      size={19}
+                      className="text-emerald-600"
+                    />
                   </div>
+
                   <p className="mt-3 text-3xl font-bold text-emerald-900">
-                    18
+                    {isLoaded ? resolvedReports.length : "—"}
                   </p>
+
                   <p className="mt-1 text-xs text-emerald-700">
-                    Données de démonstration
+                    Signalements résolus
                   </p>
                 </div>
               </div>
 
               <div className="mt-5 rounded-2xl bg-slate-50 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold">Activité récente</p>
+                  <p className="font-semibold">
+                    Activité récente
+                  </p>
+
                   <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-                    Démonstration
+                    En direct
                   </span>
                 </div>
 
                 <div className="mt-5 space-y-5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-                      <Route size={21} className="text-amber-700" />
-                    </span>
+                  {!isLoaded ? (
+                    <p className="text-sm text-slate-500">
+                      Chargement...
+                    </p>
+                  ) : recentActivities.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      Aucune activité pour le moment.
+                    </p>
+                  ) : (
+                    recentActivities.map((report) => {
+                      const config =
+                        categoryConfig[report.category] ??
+                        categoryConfig.autre;
 
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">
-                        Réparation d’une route
-                      </p>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                        <MapPin size={13} />
-                        Centre-ville
-                      </p>
-                    </div>
+                      const Icon = config.icon;
 
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
-                      En cours
-                    </span>
-                  </div>
+                      return (
+                        <div
+                          key={report.id}
+                          className="flex items-center gap-3"
+                        >
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100">
+                            <Icon
+                              size={21}
+                              className="text-blue-700"
+                            />
+                          </span>
 
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
-                      <Lightbulb size={21} className="text-emerald-700" />
-                    </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">
+                              {report.title}
+                            </p>
 
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">
-                        Éclairage rétabli
-                      </p>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                        <MapPin size={13} />
-                        Quartier résidentiel
-                      </p>
-                    </div>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                              <MapPin size={13} />
+                              <span className="truncate">
+                                {report.location}
+                              </span>
+                            </p>
+                          </div>
 
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
-                      Résolu
-                    </span>
-                  </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusColor(report.status)}`}
+                          >
+                            {report.status}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
-            </div>
-
-            <div className="absolute -bottom-5 -left-3 hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-xl sm:block">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <Users size={18} className="text-blue-600" />
-                Chaque signalement compte
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Une communauté plus engagée
-              </p>
             </div>
           </div>
         </div>
@@ -254,8 +409,8 @@ export default function Home() {
             </h2>
 
             <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-              Choisissez une catégorie pour mieux identifier les problèmes
-              de votre quartier.
+              Choisissez une catégorie pour mieux identifier
+              les problèmes de votre quartier.
             </p>
           </div>
 
@@ -274,13 +429,17 @@ export default function Home() {
               key={category.name}
               icon={category.icon}
               name={category.name}
-              count={category.count}
+              count={`${categoryCounts[
+                Object.keys(categoryConfig).find(
+                  (key) =>
+                    categoryConfig[key].label === category.name
+                ) ?? ""
+              ] ?? 0} signalement(s)`}
             />
           ))}
         </div>
       </section>
 
-      
       {/* Signalements récents */}
       <section
         id="signalements"
@@ -298,29 +457,65 @@ export default function Home() {
               </h2>
 
               <p className="mt-3 leading-7 text-slate-600">
-                Découvrez des exemples de problèmes et de leur état de
-                traitement.
+                Découvrez les problèmes signalés dans votre
+                quartier et suivez leur état de traitement.
               </p>
             </div>
 
             <span className="inline-flex items-center gap-2 text-sm text-slate-500">
               <Clock3 size={16} />
-              Données de démonstration
+              {savedReports.length} signalement(s)
             </span>
           </div>
 
-          <div className="mt-8 grid gap-5 lg:grid-cols-3">
-            {reports.map((report) => (
-              <ReportCard
-                key={report.title}
-                category={report.category}
-                title={report.title}
-                location={report.location}
-                status={report.status}
-                color={report.color}
-                icon={report.icon}
-              />
-            ))}
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {!isLoaded ? (
+              <p className="col-span-full py-10 text-center text-slate-500">
+                Chargement des signalements...
+              </p>
+            ) : recentReports.length > 0 ? (
+              recentReports.map((report) => {
+                const config =
+                  categoryConfig[report.category] ??
+                  categoryConfig.autre;
+
+                return (
+                  <ReportCard
+                    key={report.id}
+                    category={config.label}
+                    title={report.title}
+                    location={report.location}
+                    status={report.status}
+                    color={getStatusColor(report.status)}
+                    icon={config.icon}
+                  />
+                );
+              })
+            ) : (
+              <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                <MapPin
+                  size={35}
+                  className="mx-auto text-blue-600"
+                />
+
+                <h3 className="mt-4 text-lg font-bold text-slate-800">
+                  Aucun signalement pour le moment
+                </h3>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  Soyez le premier à signaler un problème
+                  dans votre quartier !
+                </p>
+
+                <a
+                  href="/reports/new"
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+                >
+                  Faire un signalement
+                  <ArrowRight size={17} />
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -332,9 +527,11 @@ export default function Home() {
             <h2 className="text-2xl font-bold sm:text-3xl">
               Votre ville mérite le meilleur.
             </h2>
+
             <p className="mt-3 max-w-2xl leading-7 text-blue-100">
-              Un petit geste peut contribuer à un grand changement.
-              Participez à l’amélioration de votre communauté.
+              Un petit geste peut contribuer à un grand
+              changement. Participez à l’amélioration de
+              votre communauté.
             </p>
           </div>
 
@@ -351,11 +548,15 @@ export default function Home() {
       {/* Pied de page */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <a href="#accueil" className="font-bold text-slate-900">
+          <a
+            href="#accueil"
+            className="font-bold text-slate-900"
+          >
             Local<span className="text-blue-600">Impact</span>
           </a>
 
           <p>Ensemble pour des quartiers meilleurs.</p>
+
           <p>Projet académique · Version de démonstration</p>
         </div>
       </footer>

@@ -35,13 +35,14 @@ export default function ReportCard({
         {category}
       </p>
 
-      <h3 className="mt-2 text-lg font-bold leading-7">{title}</h3>
+      <h3 className="mt-2 text-lg font-bold leading-7">
+        {title}
+      </h3>
 
       <p className="mt-3 flex items-center gap-2 text-sm text-slate-500">
         <MapPin size={16} className="shrink-0" />
-        {location}
+        <span className="line-clamp-2">{location}</span>
       </p>
     </article>
   );
 }
-

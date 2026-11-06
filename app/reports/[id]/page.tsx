@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -30,28 +30,6 @@ type Report = {
   createdAt: string;
 };
 
-const STORAGE_KEY = "localimpact-reports";
-
-// Écouter les changements du localStorage
-function subscribeToReports(callback: () => void) {
-  window.addEventListener("storage", callback);
-
-  return () => {
-    window.removeEventListener("storage", callback);
-  };
-}
-
-// Lire les signalements
-function getReportsSnapshot() {
-  return localStorage.getItem(STORAGE_KEY);
-}
-
-// Valeur utilisée pendant le rendu serveur
-function getServerReportsSnapshot() {
-  return "__SERVER__";
-}
-
-// Correspondance des catégories
 const categoryLabels: Record<string, string> = {
   routes: "Routes et voirie",
   eclairage: "Éclairage public",
@@ -60,7 +38,6 @@ const categoryLabels: Record<string, string> = {
   autre: "Autre",
 };
 
-// Style des statuts
 function getStatusStyle(status: string) {
   switch (status.toLowerCase()) {
     case "résolu":
@@ -80,15 +57,59 @@ function getStatusStyle(status: string) {
 
 export default function ReportDetailsPage() {
   const params = useParams<{ id: string }>();
+  const reportId = params.id;
 
-  const storedReports = useSyncExternalStore(
-    subscribeToReports,
-    getReportsSnapshot,
-    getServerReportsSnapshot
-  );
+  const [report, setReport] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Chargement initial
-  if (storedReports === "__SERVER__") {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReport() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch("/api/reports", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Impossible de récupérer les signalements.");
+        }
+
+        const reports: Report[] = await response.json();
+
+        const foundReport =
+          reports.find((item) => item.id === reportId) ?? null;
+
+        if (!cancelled) {
+          setReport(foundReport);
+        }
+      } catch (err) {
+        console.error("Erreur de chargement du signalement :", err);
+
+        if (!cancelled) {
+          setError("Impossible de charger les détails du signalement.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (reportId) {
+      loadReport();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reportId]);
+
+  if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <p className="text-slate-500">
@@ -98,21 +119,24 @@ export default function ReportDetailsPage() {
     );
   }
 
-  // Recherche du signalement
-  let report: Report | null = null;
+  if (error) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-red-600">{error}</p>
 
-  try {
-    if (storedReports) {
-      const reports: Report[] = JSON.parse(storedReports);
-
-      report =
-        reports.find((item) => item.id === params.id) ?? null;
-    }
-  } catch (error) {
-    console.error("Erreur de lecture des signalements :", error);
+          <Link
+            href="/"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+          >
+            <ArrowLeft size={17} />
+            Retour à l&apos;accueil
+          </Link>
+        </div>
+      </main>
+    );
   }
 
-  // Signalement introuvable
   if (!report) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5">
@@ -142,7 +166,6 @@ export default function ReportDetailsPage() {
     );
   }
 
-  // Informations du signalement
   const category =
     categoryLabels[report.category] ?? report.category ?? "Autre";
 
@@ -254,13 +277,11 @@ export default function ReportDetailsPage() {
                     </p>
 
                     <p className="mt-2 text-sm text-slate-600">
-                      Latitude :{" "}
-                      {report.coordinates.lat.toFixed(6)}
+                      Latitude : {report.coordinates.lat.toFixed(6)}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-600">
-                      Longitude :{" "}
-                      {report.coordinates.lng.toFixed(6)}
+                      Longitude : {report.coordinates.lng.toFixed(6)}
                     </p>
                   </div>
 
@@ -280,7 +301,6 @@ export default function ReportDetailsPage() {
 
           {/* Colonne latérale */}
           <aside className="space-y-6">
-            {/* Informations */}
             <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900">
                 Informations

@@ -27,20 +27,6 @@ const MapPicker = dynamic(
   }
 );
 
-type Report = {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  location: string;
-  coordinates: Coordinates | null;
-  photoName: string | null;
-  status: string;
-  createdAt: string;
-};
-
-const STORAGE_KEY = "localimpact-reports";
-
 export default function NewReportPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -49,8 +35,10 @@ export default function NewReportPage() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [coordinates, setCoordinates] =
     useState<Coordinates | null>(null);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handlePhotoChange(
     event: React.ChangeEvent<HTMLInputElement>
@@ -87,10 +75,11 @@ export default function NewReportPage() {
     setPhoto(file);
   }
 
-  function handleSubmit(
+  async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
     setError("");
     setSuccess("");
 
@@ -106,84 +95,70 @@ export default function NewReportPage() {
       return;
     }
 
-    if (title.trim().length < 5) {
+    if (!coordinates) {
       setError(
-        "Le titre doit contenir au moins 5 caractères."
+        "Veuillez sélectionner la position du problème sur la carte."
       );
       return;
     }
 
-    if (description.trim().length < 10) {
+    if (title.trim().length < 5 || title.trim().length > 120) {
       setError(
-        "La description doit contenir au moins 10 caractères."
+        "Le titre doit contenir entre 5 et 120 caractères."
       );
       return;
     }
 
-    if (title.trim().length > 120) {
+    if (
+      description.trim().length < 10 ||
+      description.trim().length > 2000
+    ) {
       setError(
-        "Le titre ne doit pas dépasser 120 caractères."
-      );
-      return;
-    }
-
-    if (description.trim().length > 2000) {
-      setError(
-        "La description ne doit pas dépasser 2000 caractères."
+        "La description doit contenir entre 10 et 2000 caractères."
       );
       return;
     }
 
     if (location.trim().length > 200) {
-      setError(
-        "L'adresse ne doit pas dépasser 200 caractères."
-      );
+      setError("L'adresse ne doit pas dépasser 200 caractères.");
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      const storedReports = localStorage.getItem(STORAGE_KEY);
-      let reports: Report[] = [];
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          location: location.trim(),
+          coordinates,
+        }),
+      });
 
-      if (storedReports) {
-        const parsed: unknown = JSON.parse(storedReports);
+      const data = await response.json();
 
-        if (!Array.isArray(parsed)) {
-          throw new Error("Format de stockage invalide.");
-        }
-
-        reports = parsed as Report[];
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Impossible d'enregistrer le signalement."
+        );
       }
 
-      const report: Report = {
-        id: crypto.randomUUID(),
-        title: title.trim(),
-        description: description.trim(),
-        category,
-        location: location.trim(),
-        coordinates,
-        photoName: photo?.name ?? null,
-        status: "Nouveau",
-        createdAt: new Date().toISOString(),
-      };
-
-      reports.push(report);
-
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(reports)
-      );
-
       setSuccess(
-        `Votre signalement « ${report.title} » a été enregistré avec succès !`
+        `Votre signalement « ${data.title} » a été enregistré avec succès !`
       );
 
       setTitle("");
       setDescription("");
       setCategory("");
       setLocation("");
-      setPhoto(null);
       setCoordinates(null);
+      setPhoto(null);
 
       const photoInput = document.getElementById(
         "photo"
@@ -192,10 +167,14 @@ export default function NewReportPage() {
       if (photoInput) {
         photoInput.value = "";
       }
-    } catch {
+    } catch (err) {
       setError(
-        "Impossible d'enregistrer le signalement. Vérifiez l'espace de stockage de votre navigateur."
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue lors de l'enregistrement."
       );
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -281,15 +260,9 @@ export default function NewReportPage() {
               <option value="">
                 Sélectionner une catégorie
               </option>
-              <option value="routes">
-                Routes et voirie
-              </option>
-              <option value="eclairage">
-                Éclairage public
-              </option>
-              <option value="espaces-verts">
-                Espaces verts
-              </option>
+              <option value="routes">Routes et voirie</option>
+              <option value="eclairage">Éclairage public</option>
+              <option value="espaces-verts">Espaces verts</option>
               <option value="proprete">Propreté</option>
               <option value="autre">Autre</option>
             </select>
@@ -358,8 +331,7 @@ export default function NewReportPage() {
 
             <p className="mb-3 text-sm text-slate-500">
               Cliquez sur la carte pour enregistrer les coordonnées
-              exactes du problème. L&apos;adresse sera recherchée
-              automatiquement.
+              exactes du problème.
             </p>
 
             <MapPicker
@@ -369,13 +341,20 @@ export default function NewReportPage() {
             />
 
             {coordinates && (
-              <button
-                type="button"
-                onClick={() => setCoordinates(null)}
-                className="mt-3 text-sm font-medium text-red-600 hover:text-red-700"
-              >
-                Effacer la position sélectionnée
-              </button>
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-emerald-700">
+                  Position sélectionnée : {coordinates.lat.toFixed(5)},{" "}
+                  {coordinates.lng.toFixed(5)}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setCoordinates(null)}
+                  className="text-sm font-medium text-red-600 hover:text-red-700"
+                >
+                  Effacer la position sélectionnée
+                </button>
+              </div>
             )}
           </div>
 
@@ -430,6 +409,11 @@ export default function NewReportPage() {
                 Supprimer la photo
               </button>
             )}
+
+            <p className="mt-2 text-xs text-amber-700">
+              La photo est sélectionnable, mais son enregistrement
+              sur le serveur sera ajouté dans une prochaine étape.
+            </p>
           </div>
 
           {error && (
@@ -452,15 +436,18 @@ export default function NewReportPage() {
 
           <button
             type="submit"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
+            disabled={isSubmitting}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Send size={18} />
-            Envoyer le signalement
+            {isSubmitting
+              ? "Enregistrement en cours..."
+              : "Envoyer le signalement"}
           </button>
 
           <p className="text-xs leading-5 text-slate-500">
-            Les signalements sont enregistrés dans le stockage local
-            de ce navigateur. Les photos ne sont pas encore sauvegardées.
+            Les signalements sont désormais enregistrés dans
+            la base de données PostgreSQL.
           </p>
         </form>
       </section>

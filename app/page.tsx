@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import Navbar from "./components/Navbar";
 import CategoryCard from "./components/CategoryCard";
@@ -18,6 +20,19 @@ import {
   Trees,
 } from "lucide-react";
 
+type ApiReport = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  status: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  photoUrl: string | null;
+  createdAt: string;
+};
+
 type SavedReport = {
   id: string;
   title: string;
@@ -32,8 +47,6 @@ type SavedReport = {
   status: string;
   createdAt: string;
 };
-
-const STORAGE_KEY = "localimpact-reports";
 
 const categoryConfig: Record<
   string,
@@ -93,6 +106,65 @@ const categories = [
   },
 ];
 
+function mapCategory(category: string): string {
+  switch (category) {
+    case "ROADS":
+    case "routes":
+      return "routes";
+
+    case "LIGHTING":
+    case "eclairage":
+      return "eclairage";
+
+    case "GREEN_SPACES":
+    case "espaces-verts":
+      return "espaces-verts";
+
+    case "CLEANLINESS":
+    case "proprete":
+      return "proprete";
+
+    case "OTHER":
+    case "autre":
+      return "autre";
+
+    default:
+      return "autre";
+  }
+}
+
+function mapStatus(status: string): string {
+  switch (status) {
+    case "PENDING":
+      return "En attente";
+    case "IN_PROGRESS":
+      return "En cours";
+    case "RESOLVED":
+      return "Résolu";
+    case "REJECTED":
+      return "Rejeté";
+    default:
+      return status;
+  }
+}
+
+function mapApiReport(report: ApiReport): SavedReport {
+  return {
+    id: report.id,
+    title: report.title,
+    description: report.description,
+    category: mapCategory(report.category),
+    location: report.address,
+    coordinates: {
+      lat: report.latitude,
+      lng: report.longitude,
+    },
+    photoName: report.photoUrl,
+    status: mapStatus(report.status),
+    createdAt: report.createdAt,
+  };
+}
+
 function getStatusColor(status: string) {
   switch (status.toLowerCase()) {
     case "résolu":
@@ -100,6 +172,9 @@ function getStatusColor(status: string) {
 
     case "en cours":
       return "bg-amber-100 text-amber-800";
+
+    case "rejeté":
+      return "bg-red-100 text-red-800";
 
     case "pris en charge":
       return "bg-purple-100 text-purple-800";
@@ -112,60 +187,77 @@ function getStatusColor(status: string) {
 export default function Home() {
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  // Catégorie actuellement sélectionnée
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
-    function loadReports() {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
+    let isMounted = true;
 
-        if (!stored) {
-          setSavedReports([]);
-          return;
+    async function loadReports() {
+      try {
+        const response = await fetch("/api/reports", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Impossible de charger les signalements.");
         }
 
-        const parsed: unknown = JSON.parse(stored);
+        const data: ApiReport[] = await response.json();
 
-        if (Array.isArray(parsed)) {
-          setSavedReports(parsed as SavedReport[]);
-        } else {
-          setSavedReports([]);
+        if (isMounted) {
+          setSavedReports(data.map(mapApiReport));
+          setHasError(false);
         }
       } catch (error) {
-        console.error(
-          "Erreur lors du chargement des signalements :",
-          error
-        );
-        setSavedReports([]);
+        console.error("Erreur API :", error);
+
+        if (isMounted) {
+          setHasError(true);
+        }
       } finally {
-        setIsLoaded(true);
+        if (isMounted) {
+          setIsLoaded(true);
+        }
       }
     }
 
     loadReports();
 
-    window.addEventListener("storage", loadReports);
-    window.addEventListener("focus", loadReports);
-
     return () => {
-      window.removeEventListener("storage", loadReports);
-      window.removeEventListener("focus", loadReports);
+      isMounted = false;
     };
   }, []);
 
+  // Nombre de signalements résolus
   const resolvedReports = savedReports.filter(
-    (report) => report.status.toLowerCase() === "résolu"
+    (report) => report.status === "Résolu"
   );
 
-  const recentReports = [...savedReports]
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
+  // Tous les signalements triés par date
+  const allRecentReports = [...savedReports].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() -
+      new Date(a.createdAt).getTime()
+  );
+
+  // Activités récentes du tableau de bord
+  const recentActivities = allRecentReports.slice(0, 2);
+
+  // Filtrage des signalements selon la catégorie sélectionnée
+  const recentReports = allRecentReports
+    .filter((report) =>
+      selectedCategory === null
+        ? true
+        : report.category === selectedCategory
     )
     .slice(0, 6);
 
-  const recentActivities = recentReports.slice(0, 2);
-
+  // Calcul du nombre de signalements par catégorie
   const categoryCounts = savedReports.reduce(
     (counts, report) => {
       counts[report.category] =
@@ -175,6 +267,22 @@ export default function Home() {
     },
     {} as Record<string, number>
   );
+
+  // Sélectionner une catégorie et aller à la liste
+  function handleCategoryClick(categoryKey: string) {
+    setSelectedCategory(categoryKey);
+
+    setTimeout(() => {
+      document
+        .getElementById("signalements")
+        ?.scrollIntoView({ behavior: "smooth" });
+    }, 0);
+  }
+
+  // Afficher toutes les catégories
+  function handleShowAll() {
+    setSelectedCategory(null);
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -215,44 +323,36 @@ export default function Home() {
               id="signaler"
               className="mt-9 flex flex-col gap-3 sm:flex-row"
             >
-              <a
+              <Link
                 href="/reports/new"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
               >
                 Faire un signalement
                 <ArrowRight size={18} />
-              </a>
+              </Link>
 
-              <a
+              <Link
                 href="#signalements"
+                onClick={handleShowAll}
                 className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50"
               >
                 Voir les signalements
-              </a>
+              </Link>
             </div>
 
             <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-500">
               <span className="inline-flex items-center gap-2">
-                <CheckCircle2
-                  size={17}
-                  className="text-blue-600"
-                />
+                <CheckCircle2 size={17} className="text-blue-600" />
                 Simple et accessible
               </span>
 
               <span className="inline-flex items-center gap-2">
-                <CheckCircle2
-                  size={17}
-                  className="text-blue-600"
-                />
+                <CheckCircle2 size={17} className="text-blue-600" />
                 Suivi des signalements
               </span>
 
               <span className="inline-flex items-center gap-2">
-                <CheckCircle2
-                  size={17}
-                  className="text-blue-600"
-                />
+                <CheckCircle2 size={17} className="text-blue-600" />
                 Action collective
               </span>
             </div>
@@ -273,10 +373,7 @@ export default function Home() {
                 </div>
 
                 <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-                  <Building2
-                    size={27}
-                    className="text-blue-600"
-                  />
+                  <Building2 size={27} className="text-blue-600" />
                 </span>
               </div>
 
@@ -287,10 +384,7 @@ export default function Home() {
                       Signalements
                     </p>
 
-                    <Route
-                      size={19}
-                      className="text-blue-600"
-                    />
+                    <Route size={19} className="text-blue-600" />
                   </div>
 
                   <p className="mt-3 text-3xl font-bold text-blue-900">
@@ -358,10 +452,7 @@ export default function Home() {
                           className="flex items-center gap-3"
                         >
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100">
-                            <Icon
-                              size={21}
-                              className="text-blue-700"
-                            />
+                            <Icon size={21} className="text-blue-700" />
                           </span>
 
                           <div className="min-w-0 flex-1">
@@ -416,6 +507,7 @@ export default function Home() {
 
           <a
             href="#signalements"
+            onClick={handleShowAll}
             className="inline-flex items-center gap-2 font-semibold text-blue-600 hover:text-blue-800"
           >
             Tous les signalements
@@ -424,19 +516,23 @@ export default function Home() {
         </div>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {categories.map((category) => (
-            <CategoryCard
-              key={category.name}
-              icon={category.icon}
-              name={category.name}
-              count={`${categoryCounts[
-                Object.keys(categoryConfig).find(
-                  (key) =>
-                    categoryConfig[key].label === category.name
-                ) ?? ""
-              ] ?? 0} signalement(s)`}
-            />
-          ))}
+          {categories.map((category) => {
+            const categoryKey =
+              Object.keys(categoryConfig).find(
+                (key) =>
+                  categoryConfig[key].label === category.name
+              ) ?? "autre";
+
+            return (
+              <CategoryCard
+                key={category.name}
+                icon={category.icon}
+                name={category.name}
+                count={`${categoryCounts[categoryKey] ?? 0} signalement(s)`}
+                onClick={() => handleCategoryClick(categoryKey)}
+              />
+            );
+          })}
         </div>
       </section>
 
@@ -460,18 +556,44 @@ export default function Home() {
                 Découvrez les problèmes signalés dans votre
                 quartier et suivez leur état de traitement.
               </p>
+
+              {selectedCategory !== null && (
+                <p className="mt-3 text-sm font-medium text-blue-600">
+                  Catégorie sélectionnée :{" "}
+                  {categoryConfig[selectedCategory]?.label}
+                </p>
+              )}
             </div>
 
-            <span className="inline-flex items-center gap-2 text-sm text-slate-500">
-              <Clock3 size={16} />
-              {savedReports.length} signalement(s)
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 text-sm text-slate-500">
+                <Clock3 size={16} />
+                {isLoaded
+                  ? recentReports.length
+                  : "—"}{" "}
+                signalement(s)
+              </span>
+
+              {selectedCategory !== null && (
+                <button
+                  type="button"
+                  onClick={handleShowAll}
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-800"
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {!isLoaded ? (
               <p className="col-span-full py-10 text-center text-slate-500">
                 Chargement des signalements...
+              </p>
+            ) : hasError ? (
+              <p className="col-span-full py-10 text-center text-red-600">
+                Impossible de charger les signalements. Veuillez réessayer.
               </p>
             ) : recentReports.length > 0 ? (
               recentReports.map((report) => {
@@ -499,21 +621,21 @@ export default function Home() {
                 />
 
                 <h3 className="mt-4 text-lg font-bold text-slate-800">
-                  Aucun signalement pour le moment
+                  Aucun signalement dans cette catégorie
                 </h3>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Soyez le premier à signaler un problème
-                  dans votre quartier !
+                  Aucun problème n&apos;a encore été signalé dans cette catégorie.
                 </p>
 
-                <a
-                  href="/reports/new"
+                <button
+                  type="button"
+                  onClick={handleShowAll}
                   className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
                 >
-                  Faire un signalement
+                  Voir tous les signalements
                   <ArrowRight size={17} />
-                </a>
+                </button>
               </div>
             )}
           </div>
@@ -535,13 +657,13 @@ export default function Home() {
             </p>
           </div>
 
-          <a
+          <Link
             href="/reports/new"
             className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-6 py-3.5 font-semibold text-blue-700 transition hover:bg-blue-50"
           >
             Participer maintenant
             <ArrowRight size={18} />
-          </a>
+          </Link>
         </div>
       </section>
 

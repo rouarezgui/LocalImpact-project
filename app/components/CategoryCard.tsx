@@ -5,17 +5,20 @@ type CategoryCardProps = {
   icon: LucideIcon;
   name: string;
   count: string;
+  onClick: () => void;
 };
 
 export default function CategoryCard({
   icon: Icon,
   name,
   count,
+  onClick,
 }: CategoryCardProps) {
   return (
-    <a
-      href="#signalements"
-      className="group rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-900/5"
+    <button
+      type="button"
+      onClick={onClick}
+      className="group w-full rounded-2xl border border-slate-200 bg-white p-6 text-left transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-900/5"
     >
       <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 transition group-hover:bg-blue-100">
         <Icon
@@ -33,6 +36,6 @@ export default function CategoryCard({
         En savoir plus
         <ArrowRight size={16} />
       </span>
-    </a>
+    </button>
   );
 }

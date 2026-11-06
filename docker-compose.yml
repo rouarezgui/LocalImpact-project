@@ -1,0 +1,22 @@
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: localimpact-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: localimpact_user
+      POSTGRES_PASSWORD: localimpact_dev_password
+      POSTGRES_DB: localimpact_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - localimpact_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U localimpact_user -d localimpact_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  localimpact_postgres_data:

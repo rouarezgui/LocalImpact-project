@@ -1,6 +1,7 @@
-
+﻿
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth/dal";
 
 const categoryMap: Record<string, "ROADS" | "LIGHTING" | "GREEN_SPACES" | "CLEANLINESS" | "OTHER"> = {
   routes: "ROADS",
@@ -13,8 +14,8 @@ const categoryMap: Record<string, "ROADS" | "LIGHTING" | "GREEN_SPACES" | "CLEAN
 const statusMap: Record<string, string> = {
   PENDING: "En attente",
   IN_PROGRESS: "En cours",
-  RESOLVED: "Résolu",
-  REJECTED: "Rejeté",
+  RESOLVED: "RÃ©solu",
+  REJECTED: "RejetÃ©",
 };
 
 function formatReport(report: {
@@ -47,7 +48,7 @@ function formatReport(report: {
   };
 }
 
-// GET : récupérer tous les signalements
+// GET : rÃ©cupÃ©rer tous les signalements
 export async function GET() {
   try {
     const reports = await prisma.report.findMany({
@@ -59,13 +60,13 @@ export async function GET() {
     console.error("Erreur GET reports :", error);
 
     return NextResponse.json(
-      { message: "Impossible de récupérer les signalements." },
+      { message: "Impossible de rÃ©cupÃ©rer les signalements." },
       { status: 500 }
     );
   }
 }
 
-// POST : créer un signalement
+// POST : crÃ©er un signalement
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -107,15 +108,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Utilisateur temporaire en attendant l'intégration de l'authentification.
-    const testUser = await prisma.user.findUnique({
-      where: { email: "test@localimpact.tn" },
-    });
+    const currentUser = await getCurrentUser();
 
-    if (!testUser) {
+    if (!currentUser) {
       return NextResponse.json(
-        { message: "Utilisateur de test introuvable. Créez-le d'abord dans la base de données." },
-        { status: 400 }
+        { message: "Vous devez être connecté pour créer un signalement." },
+        { status: 401 }
       );
     }
 
@@ -127,7 +125,7 @@ export async function POST(request: NextRequest) {
         address: location.trim(),
         latitude: coordinates.lat,
         longitude: coordinates.lng,
-        creatorId: testUser.id,
+        creatorId: currentUser.id,
       },
     });
 
@@ -136,8 +134,9 @@ export async function POST(request: NextRequest) {
     console.error("Erreur POST reports :", error);
 
     return NextResponse.json(
-      { message: "Impossible de créer le signalement." },
+      { message: "Impossible de crÃ©er le signalement." },
       { status: 500 }
     );
   }
 }
+

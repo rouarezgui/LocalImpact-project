@@ -42,6 +42,7 @@ model User {
   comments        Comment[]
   supports        Support[]
   history         ReportHistory[]
+  sessions        Session[]
 }
 
 model Report {
@@ -67,6 +68,7 @@ model Report {
   comments Comment[]
   supports Support[]
   history  ReportHistory[]
+  
 }
 
 model Comment {
@@ -106,4 +108,17 @@ model ReportHistory {
 
   user   User   @relation(fields: [userId], references: [id])
   report Report @relation(fields: [reportId], references: [id])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

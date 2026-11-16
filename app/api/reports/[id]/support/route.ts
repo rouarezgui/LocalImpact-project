@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/dal";
 import { reportsContainer } from "@/features/reports/infrastructure/reports-container";
-import { ReportError } from "@/features/reports/domain/report-error";
+import { reportErrorResponse } from "@/features/reports/presentation/report-error-response";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -31,17 +31,6 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       { status: 201 }
     );
   } catch (error) {
-    if (error instanceof ReportError) {
-      const status =
-        error.code === "REPORT_NOT_FOUND" ? 404 :
-        error.code === "ALREADY_SUPPORTED" ? 409 : 400;
-      return NextResponse.json({ message: error.message }, { status });
-    }
-
-    console.error("Erreur lors du soutien :", error);
-    return NextResponse.json(
-      { message: "Une erreur interne est survenue." },
-      { status: 500 }
-    );
+    return reportErrorResponse(error);
   }
 }

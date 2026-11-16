@@ -451,11 +451,12 @@ export default function Home({ user }: HomeProps) {
 
                       const Icon = config.icon;
 
-                      return (
-                        <div
-                          key={report.id}
-                          className="flex items-center gap-3"
-                        >
+return (
+  <Link
+    href={`/reports/${report.id}`}
+    key={report.id}
+    className="flex items-center gap-3 rounded-xl transition hover:bg-white"
+  >
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100">
                             <Icon size={21} className="text-blue-700" />
                           </span>
@@ -478,7 +479,7 @@ export default function Home({ user }: HomeProps) {
                           >
                             {report.status}
                           </span>
-                        </div>
+                        </Link>
                       );
                     })
                   )}
@@ -609,6 +610,7 @@ export default function Home({ user }: HomeProps) {
                 return (
                   <ReportCard
                     key={report.id}
+                    id={report.id} 
                     category={config.label}
                     title={report.title}
                     location={report.location}

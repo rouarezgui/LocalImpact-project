@@ -43,4 +43,19 @@ export class PrismaReportRepository implements ReportRepository {
       }),
     ]);
   }
+
+    async hasUserSupported(reportId: string, userId: string): Promise<boolean> {
+    const support = await prisma.support.findUnique({
+      where: { userId_reportId: { userId, reportId } },
+    });
+    return support !== null;
+  }
+
+  async addSupport(reportId: string, userId: string): Promise<void> {
+    await prisma.support.create({ data: { reportId, userId } });
+  }
+
+  async countSupports(reportId: string): Promise<number> {
+    return prisma.support.count({ where: { reportId } });
+  }
 }

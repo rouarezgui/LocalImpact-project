@@ -212,7 +212,7 @@ export default function NewReportPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="mt-8 space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+          className="mt-8 space-y-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm sm:p-8"
         >
           <div>
             <label
@@ -234,7 +234,7 @@ export default function NewReportPage() {
               minLength={5}
               maxLength={120}
               placeholder="Ex. : Lampadaire en panne"
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-black placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </div>
 
@@ -255,7 +255,7 @@ export default function NewReportPage() {
                 setSuccess("");
               }}
               required
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-black outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             >
               <option value="">
                 Sélectionner une catégorie
@@ -289,7 +289,7 @@ export default function NewReportPage() {
               maxLength={2000}
               rows={5}
               placeholder="Décrivez le problème et ses conséquences..."
-              className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="w-full resize-y rounded-xl border border-slate-300 px-4 py-3 text-black placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </div>
 
@@ -318,7 +318,7 @@ export default function NewReportPage() {
                 required
                 maxLength={200}
                 placeholder="Ex. : Avenue Habib Bourguiba, Tunis"
-                className="w-full rounded-xl border border-slate-300 py-3 pl-11 pr-4 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="w-full rounded-xl border border-slate-300 py-3 pl-11 pr-4 text-black placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
             </div>
           </div>

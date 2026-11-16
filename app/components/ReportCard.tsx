@@ -1,6 +1,8 @@
 import { MapPin, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 
 type ReportCardProps = {
+  id: string; 
   category: string;
   title: string;
   location: string;
@@ -10,6 +12,7 @@ type ReportCardProps = {
 };
 
 export default function ReportCard({
+  id,
   category,
   title,
   location,
@@ -18,7 +21,8 @@ export default function ReportCard({
   icon: Icon,
 }: ReportCardProps) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-blue-200 hover:shadow-lg hover:shadow-slate-900/5">
+    <Link href={`/reports/${id}`} className="block">
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-blue-200 hover:shadow-lg hover:shadow-slate-900/5">
       <div className="flex items-center justify-between gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
           <Icon size={23} className="text-blue-600" />
@@ -43,6 +47,7 @@ export default function ReportCard({
         <MapPin size={16} className="shrink-0" />
         <span className="line-clamp-2">{location}</span>
       </p>
-    </article>
+          </article>
+    </Link>
   );
 }

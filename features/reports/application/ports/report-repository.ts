@@ -6,4 +6,8 @@ export interface ReportRepository {
   updateStatusAndCreateHistory(
     change: ReportStatusChange
   ): Promise<void>;
+
+  hasUserSupported(reportId: string, userId: string): Promise<boolean>;
+  addSupport(reportId: string, userId: string): Promise<void>;
+  countSupports(reportId: string): Promise<number>;
 }

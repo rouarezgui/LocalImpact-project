@@ -32,7 +32,7 @@ export default function RegisterForm() {
           maxLength={100}
           autoComplete="name"
           placeholder="Votre nom complet"
-          className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          className="w-full rounded-xl border border-slate-200 px-4 py-3 text-black outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
         {state.errors?.name?.[0] && (
           <p className="mt-1 text-sm text-red-600">{state.errors.name[0]}</p>
@@ -51,7 +51,7 @@ export default function RegisterForm() {
           maxLength={255}
           autoComplete="email"
           placeholder="exemple@email.com"
-          className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          className="w-full rounded-xl border border-slate-200 px-4 py-3 text-black outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
         {state.errors?.email?.[0] && (
           <p className="mt-1 text-sm text-red-600">{state.errors.email[0]}</p>
@@ -70,7 +70,7 @@ export default function RegisterForm() {
           minLength={8}
           autoComplete="new-password"
           placeholder="Au moins 8 caractères"
-          className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          className="w-full rounded-xl border border-slate-200 px-4 py-3 text-black outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
         {state.errors?.password?.[0] && (
           <p className="mt-1 text-sm text-red-600">{state.errors.password[0]}</p>

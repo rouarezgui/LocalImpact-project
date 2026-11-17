@@ -27,10 +27,13 @@ type ApiReport = {
   description: string;
   category: string;
   status: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  photoUrl: string | null;
+  location: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  photoName: string | null;
+  statusCode: string;
   createdAt: string;
 };
 
@@ -155,13 +158,10 @@ function mapApiReport(report: ApiReport): SavedReport {
     title: report.title,
     description: report.description,
     category: mapCategory(report.category),
-    location: report.address,
-    coordinates: {
-      lat: report.latitude,
-      lng: report.longitude,
-    },
-    photoName: report.photoUrl,
-    status: mapStatus(report.status),
+    location: report.location,
+    coordinates: report.coordinates,
+    photoName: report.photoName,
+    status: mapStatus(report.statusCode),
     createdAt: report.createdAt,
   };
 }

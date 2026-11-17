@@ -1,7 +1,12 @@
 
 "use client";
 
-import { useState } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   MapContainer,
   TileLayer,
@@ -108,6 +113,27 @@ export default function MapPicker({
   onSelect,
   onAddressFound,
 }: MapPickerProps) {
+  const mountedRef = useRef(false);
+  const subscribeToMount = useCallback(
+    (onStoreChange: () => void) => {
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        onStoreChange();
+      }
+
+      return () => {};
+    },
+    [mountedRef]
+  );
+  const getMountSnapshot = useCallback(
+    () => mountedRef.current,
+    [mountedRef]
+  );
+  const isMounted = useSyncExternalStore(
+    subscribeToMount,
+    getMountSnapshot,
+    () => false
+  );
   const [isLocating, setIsLocating] = useState(false);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [locationError, setLocationError] = useState("");
@@ -230,32 +256,39 @@ export default function MapPicker({
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200">
-        <MapContainer
-          center={[TUNIS.lat, TUNIS.lng]}
-          zoom={12}
-          scrollWheelZoom={true}
-          className="h-80 w-full"
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          <MapClickHandler
-            onSelect={(coordinates) => {
-              void selectLocation(coordinates);
-            }}
-          />
-
-          <MapPositionController position={position} />
-
-          {position && (
-            <Marker
-              position={[position.lat, position.lng]}
-              icon={markerIcon}
+        {isMounted ? (
+          <MapContainer
+            center={[TUNIS.lat, TUNIS.lng]}
+            zoom={12}
+            scrollWheelZoom={true}
+            className="h-80 w-full"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-          )}
-        </MapContainer>
+
+            <MapClickHandler
+              onSelect={(coordinates) => {
+                void selectLocation(coordinates);
+              }}
+            />
+
+            <MapPositionController position={position} />
+
+            {position && (
+              <Marker
+                position={[position.lat, position.lng]}
+                icon={markerIcon}
+              />
+            )}
+          </MapContainer>
+        ) : (
+          <div
+            aria-busy="true"
+            className="h-80 w-full animate-pulse bg-slate-100"
+          />
+        )}
       </div>
 
       <div className="rounded-xl bg-slate-50 p-4">

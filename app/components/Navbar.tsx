@@ -41,6 +41,10 @@ export default function Navbar({ user }: NavbarProps) {
             Accueil
           </Link>
 
+          <Link href="/reports" className="transition hover:text-blue-600">
+            Signalements
+          </Link>
+
           {/* Accessible uniquement à l'ADMIN */}
           {isAdmin && (
             <Link

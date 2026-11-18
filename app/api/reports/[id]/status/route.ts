@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { getCurrentUser } from "@/lib/auth/dal";
 import { reportsContainer } from "@/features/reports/infrastructure/reports-container";
-import { ReportError } from "@/features/reports/domain/report-error";
+import { reportErrorResponse } from "@/features/reports/presentation/report-error-response";
 
 const statusSchema = z.object({
   status: z.enum(["PENDING", "IN_PROGRESS", "RESOLVED", "REJECTED"]),
@@ -29,15 +29,7 @@ export async function PATCH(
       );
     }
 
-    // 2. Vérifier les permissions RBAC
-    if (!["MANAGER", "ADMIN"].includes(currentUser.role)) {
-      return NextResponse.json(
-        { message: "Vous n'avez pas les permissions nécessaires." },
-        { status: 403 }
-      );
-    }
-
-    // 3. Récupérer et valider les données
+    // Récupérer et valider les données
     const { id } = await context.params;
     const body = await request.json();
     const validation = statusSchema.safeParse(body);
@@ -55,27 +47,13 @@ export async function PATCH(
       newStatus: validation.data.status,
       description: validation.data.description ?? null,
       userId: currentUser.id,
+      userRole: currentUser.role,
     });
 
     return NextResponse.json({
       message: "Le statut du signalement a été mis à jour.",
     });
   } catch (error) {
-    if (error instanceof ReportError) {
-      const status =
-        error.code === "REPORT_NOT_FOUND" ? 404 : 400;
-
-      return NextResponse.json(
-        { message: error.message },
-        { status }
-      );
-    }
-
-    console.error("Erreur lors du changement de statut :", error);
-
-    return NextResponse.json(
-      { message: "Une erreur interne est survenue." },
-      { status: 500 }
-    );
+    return reportErrorResponse(error);
   }
 }

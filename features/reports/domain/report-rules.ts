@@ -7,9 +7,17 @@ const allowedTransitions: Record<ReportStatus, ReportStatus[]> = {
   REJECTED: [],
 };
 
+export const MAX_COMMENT_LENGTH = 500;
+
 export function canChangeReportStatus(
   currentStatus: ReportStatus,
   newStatus: ReportStatus
 ): boolean {
   return allowedTransitions[currentStatus].includes(newStatus);
+}
+
+export function getAllowedNextStatuses(
+  status: ReportStatus
+): ReportStatus[] {
+  return [...allowedTransitions[status]];
 }

@@ -14,22 +14,28 @@ const categoryMap: Record<string, "ROADS" | "LIGHTING" | "GREEN_SPACES" | "CLEAN
 const statusMap: Record<string, string> = {
   PENDING: "En attente",
   IN_PROGRESS: "En cours",
-  RESOLVED: "RÃ©solu",
-  REJECTED: "RejetÃ©",
+  RESOLVED: "Résolu",
+  REJECTED: "Rejeté",
 };
 
-function formatReport(report: {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  status: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  photoUrl: string | null;
-  createdAt: Date;
-}) {
+function formatReport(
+  report: {
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    status: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    photoUrl: string | null;
+    createdAt: Date;
+    assignedToId?: string | null;
+    assignedTo?: { name: string } | null;
+    _count?: { supports: number };
+  },
+  includeDetails = false
+) {
   return {
     id: report.id,
     title: report.title,
@@ -44,29 +50,41 @@ function formatReport(report: {
     },
     photoName: report.photoUrl,
     status: statusMap[report.status] ?? report.status,
+    ...(includeDetails
+      ? {
+          statusCode: report.status,
+          supportCount: report._count?.supports ?? 0,
+          assignedToId: report.assignedToId ?? null,
+          assignedToName: report.assignedTo?.name ?? null,
+        }
+      : {}),
     createdAt: report.createdAt.toISOString(),
   };
 }
 
-// GET : rÃ©cupÃ©rer tous les signalements
+// GET : récupérer tous les signalements
 export async function GET() {
   try {
     const reports = await prisma.report.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { supports: true } },
+        assignedTo: { select: { name: true } },
+      },
     });
 
-    return NextResponse.json(reports.map(formatReport));
+    return NextResponse.json(reports.map((report) => formatReport(report, true)));
   } catch (error) {
     console.error("Erreur GET reports :", error);
 
     return NextResponse.json(
-      { message: "Impossible de rÃ©cupÃ©rer les signalements." },
+      { message: "Impossible de récupérer les signalements." },
       { status: 500 }
     );
   }
 }
 
-// POST : crÃ©er un signalement
+// POST : créer un signalement
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -134,7 +152,7 @@ export async function POST(request: NextRequest) {
     console.error("Erreur POST reports :", error);
 
     return NextResponse.json(
-      { message: "Impossible de crÃ©er le signalement." },
+      { message: "Impossible de créer le signalement." },
       { status: 500 }
     );
   }

@@ -1,5 +1,5 @@
 ﻿import type { ReportRepository } from "../ports/report-repository";
-import type { ReportStatus } from "../../domain/report";
+import type { ActorRole, ReportStatus } from "../../domain/report";
 import { canChangeReportStatus } from "../../domain/report-rules";
 import { ReportError } from "../../domain/report-error";
 
@@ -8,6 +8,7 @@ export interface ChangeReportStatusInput {
   newStatus: ReportStatus;
   description: string | null;
   userId: string;
+  userRole: ActorRole;
 }
 
 export class ChangeReportStatus {
@@ -25,6 +26,16 @@ export class ChangeReportStatus {
       );
     }
 
+    if (
+      input.userRole !== "ADMIN" &&
+      (input.userRole !== "MANAGER" || report.assignedToId !== input.userId)
+    ) {
+      throw new ReportError(
+        "FORBIDDEN",
+        "Vous n'êtes pas autorisé à modifier ce signalement."
+      );
+    }
+
     if (!canChangeReportStatus(report.status, input.newStatus)) {
       throw new ReportError(
         "INVALID_STATUS_TRANSITION",
@@ -32,11 +43,20 @@ export class ChangeReportStatus {
       );
     }
 
+    const description = input.description?.trim() || null;
+
+    if (input.newStatus === "RESOLVED" && !description) {
+      throw new ReportError(
+        "RESOLUTION_DESCRIPTION_REQUIRED",
+        "Une description de l'intervention est obligatoire pour résoudre un signalement."
+      );
+    }
+
     await this.reportRepository.updateStatusAndCreateHistory({
       reportId: report.id,
       oldStatus: report.status,
       newStatus: input.newStatus,
-      description: input.description,
+      description,
       userId: input.userId,
     });
   }

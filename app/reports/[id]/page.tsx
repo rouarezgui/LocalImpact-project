@@ -3,8 +3,8 @@ import { requireUser } from "@/lib/auth/dal";
 import ReportDetailsClient from "./report-details-client";
 
 async function ProtectedReportDetails() {
-  await requireUser();
-  return <ReportDetailsClient />;
+  const currentUser = await requireUser();
+  return <ReportDetailsClient currentUser={currentUser} />;
 }
 
 export default function ReportDetailsPage() {
